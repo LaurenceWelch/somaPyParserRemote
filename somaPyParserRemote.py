@@ -30,7 +30,9 @@ LogMap = {
 #Each entry represents a regular expression string.
 ReMap = {
     #successful ssh logins
-    'accepted': 'Accepted'
+    'accepted': 'Accepted',
+    #ipv4 address
+    'ip': '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
 
 ######################
@@ -78,22 +80,51 @@ def filterLog(string, log):
         re.search(string, line) and result.append(line)
     return result
 
+#count distinct regex matches
+def distinct(string, log, reverseResults=False):
+    result = []
+    sortFun = lambda x: int(x[0:x.index(' ')])
+    d = {}
+    for line in log:
+        o = re.search(string, line)
+        if o:
+            val = o.group()
+            if val in d:
+                d[val] += 1 
+            else:
+                d[val] = 1
+    for k in d:
+        result.append(str(d[k]) + ' times ' + str(k))    
+    result.sort(key=sortFun, reverse=reverseResults)
+    return result
+
 #count results
 def printCount(log):
     print('==> rows displayed:', len(log))
     print('==> log total rows:', len(LogObj[CurrentKey]))
 
+#save a temp regex string
+def saveReMap(name, string, escape=True):
+    if name in ReMap:
+        print('error: name already taken')
+    else:
+        string = re.escape(string)
+        ReMap[name] = string
+        print('==> saved', string, 'as', name)
+    
 #parse user input into commands
 def parseCommand(command):
     if command == 'h':
         printHelp()
-    command = 'filter accepted'
+    test1 = '103.180.149.133'
+    saveReMap('badip', test1)
+    command = 'filter badip'
     cmd = command.split() 
     if len(cmd) < 2:
         return
     numCmds = int(len(cmd) / 2)
     if CurrentKey == '':
-        print('error: set an current log first')
+        print('error: set a current log first')
         return
     log = LogObj[CurrentKey]
     if not log:
@@ -101,9 +132,17 @@ def parseCommand(command):
     for i in range(numCmds):
         nextCmd = cmd[i * 2: i * 2 + 2]
         first = nextCmd[0]
+        second = nextCmd[1]
+        if second not in ReMap:
+            print('error: regex string', second, 'not found in ReMap')
+        regexString = ReMap[second] 
         if first == 'filter':
-            log = filterLog(ReMap[nextCmd[1]], log)
-    #print results
+            log = filterLog(regexString, log)
+        elif first == 'distinct':
+            log = distinct(regexString, log)
+        elif first == 'distinctr':
+            log = distinct(regexString, log, reverseResults=True)
+   #print results
     printResult(log)
     printCount(log)
 
