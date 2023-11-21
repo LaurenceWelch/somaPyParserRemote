@@ -45,7 +45,7 @@ load auth ubuntu1 ubu1
 ```
 Load a local file:
 ```
-load auth.log ubu2
+loadlocal auth.log ubu2
 ```
 
 ## Show the UI
@@ -55,13 +55,15 @@ d
 ```
 Check the help screen:
 ```
-q
+h
 ```
 
 ## Switch between logs
+switch to log ubu1
 ```
 use ubu1
 ```
+switch to log ubu2
 ```
 use ubu2
 ```
@@ -80,6 +82,10 @@ saveraw [0-9]{10} numchunk
 Filter by accepted SSH logins:
 ```
 filter accepted
+```
+Count distinct ips
+```
+distinct ip
 ```
 Filter by accepted, then count distinct ips
 ```

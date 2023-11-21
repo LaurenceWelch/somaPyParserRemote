@@ -66,7 +66,7 @@ MacroMap = {
 #Commands in this list will be run, in order, upon starting this script. If you always pull the same logs, loading them at startup might be a good idea.
 Startup = [
     #'loadubu1',
-    #'d'
+    'd'
 ] 
 
 #########################
