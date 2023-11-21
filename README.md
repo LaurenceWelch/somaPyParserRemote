@@ -1,7 +1,10 @@
 # somaPyParserRemote
 
-## Summary
-Pull and parse data using SSH and regex. Customize and save commands for rapid log analysis.
+## Purpose and Goals
+1. Analyze the log files of remote linux machines in a convenient fashion.
+2. Lightweight: Data transfer happens via SSH, doesn't require any extra software.
+3. Flexible: Can handle non-normalized logs because it uses regex not column numbers.
+4. Customizable: Add hosts, log paths, and regex strings easily.
 
 ## Security Considerations
 This script uses the subprocess module to run bash commands. Anyone with write access could modify said commands for nefarious purposes. If the remote user has root privileges, users running this script will have root privileges on the remote machine.
@@ -24,9 +27,30 @@ Host [pick a name]
 ```bash
 ssh [name you picked]
 ```
-
 4. Celebrate!
 
-## Parser Setup
+## Running the parser
 
+Look at somaPyParserRemote.py to learn what to edit. When everything is in order, open a terminal and enter:
+```bash
+python3 somaPyParserRemote.py
+```
 
+## Examples
+
+```bash
+#load a remote log into a variable
+#load <LogMap key> <HostMap key> <pick a name>
+load auth ubuntu1 ubu1
+
+#load a local log
+#loadlocal <fileName> <pick a name>
+load auth.log ubu2
+
+#filter by accepted logins
+#filter <ReMap key>
+filter accepted
+
+#filter by accepted than count distinct ips
+#filter accepted distinct ip
+```

@@ -1,59 +1,86 @@
+#somaPyParserRemote
 #Laurence Welch
 
 import subprocess
 import re
 
-##################
-#                #
-# Config Section #
-#                #
-##################
+##############################
+#                            #
+# Explanation and Config     #
+#                            #
+# Summary: uses SSH to pull  #
+# log data and store it into #
+# a list. Once stored, you   #
+# can filter and aggregate   #
+# the log.                   #
+#                            #
+# Examples can be found in   #
+# the README.                #
+#                            #
+# Brief Description of maps  #
+#   1. HostMap: used to      #
+#      reference remote      #
+#      machines.             #
+#                            #
+#   2. LogMap: used to       #
+#      reference logs within #
+#      a remote machine.     #
+#                            #
+#   3. ReMap: used to pull   #
+#      'fields' from log     #
+#      entries.              #
+#                            #
+##############################
 
-#   pullMap
+#   HostMap
 #Each entry in this dictionary represents a remote machine. This script requires the configuration of your ~/.ssh/config file.
 #key: how this script references the dictionary entry.
 #value: an array consisting of: 
 #   1. the command used to ssh (ssh).
 #   2. the ~/.ssh/config machine name (i.e. if you ssh using the command 'ssh ubuntu1', the value here should be ubuntu1).
 #   3. the command used to print data to stdout (cat).
-PullMap = {
+HostMap = {
     'ubuntu1': ['ssh', 'ubuntu1', 'cat']
 }
 
-#   logMap
+#   LogMap
 #Each entry represents the path of a log on a remote machine, e.g. /var/log/auth.log. This path will be automatically appended to the command: e.g. 'ssh ubuntu1 "cat /etc/var/auth.log"'.
 LogMap = {
     'auth': '/var/log/auth.log'
 }
 
-#   reMap
+#   ReMap
 #Each entry represents a regular expression string.
+#You can create dynamic (temporary) entries using the command: save <key name> <regex string>
+#The above command will, for convenience, escape special regex characters.
+#If you don't want special characters escaped, use the command: saveraw <key name> <regex string>
 ReMap = {
     #successful ssh logins
     'accepted': 'Accepted',
-    #ipv4 address
+    #invalid login attempt
+    'invalid': 'Invalid',
+    #ip address (ipv4)
     'ip': '([0-9]{1,3}\.){3}[0-9]{1,3}'
 }
 
-######################
-#                    #
-# End Config Section #
-#                    #
-######################
+#########################
+#                       #
+# End of Config Section #
+#                       #
+#########################
 
+#Globals
 LogObj = {}
-CurrentKey = 'tl'
+CurrentKey = ''
 
+#print log contents
 def printResult(l):
     for line in l:
         print(line)
 
-#for testing
-def getLocalLog():
-    LogObj['tl'] = []
-    with open('auth.log') as f:
-        for line in f: 
-            LogObj['tl'].append(line)
+#print informative message
+def printSys(label, value):
+    print('<>', label, ':', value)
 
 #prints each loop iteration
 def printDashboard():
@@ -70,8 +97,13 @@ def printDashboard():
 
 #cheatsheet
 def printHelp():
-    print('load data: get <pullMap key> <logMap key>')
-    s = 'filter count limit'
+    print('dashboard:       d')
+    print('quit:            q')
+    print('load data:       load <LogMap key> <HostMap key> <pick a name>')
+    print('load local data: loadlocal <fileName> <pick a name>')
+    print('filter:          filter <ReMap key>')
+    print('distinct:        distinct <Remap key>')
+    print('save to ReMap:   save|saveraw <regex string> <pick a name>')
 
 #filter based on a regex string
 def filterLog(string, log):
@@ -100,8 +132,8 @@ def distinct(string, log, reverseResults=False):
 
 #count results
 def printCount(log):
-    print('==> rows displayed:', len(log))
-    print('==> log total rows:', len(LogObj[CurrentKey]))
+    printSys('rows displayed', len(log))
+    printSys('log total rows', len(LogObj[CurrentKey]))
 
 #save a temp regex string
 def saveReMap(name, string, escape=True):
@@ -110,31 +142,41 @@ def saveReMap(name, string, escape=True):
     else:
         string = re.escape(string)
         ReMap[name] = string
-        print('==> saved', string, 'as', name)
-    
-#parse user input into commands
-def parseCommand(command):
-    if command == 'h':
-        printHelp()
-    test1 = '103.180.149.133'
-    saveReMap('badip', test1)
-    command = 'filter badip'
-    cmd = command.split() 
-    if len(cmd) < 2:
+        printSys('temporarily saved', string + ' as ' + name)
+
+#used while parsing a save command
+def branchSave(cmdList):
+    if len(cmdList) != 3:
+        print('error: try: save|saveraw <regex string> <pick a name>')
         return
-    numCmds = int(len(cmd) / 2)
+    first,second,third = cmdList
+    #escape special chars unless saveraw
+    shouldEscape = first == 'save'
+    saveReMap(third, second)
+
+#used while parsing <operator> <regex string> commands
+def branchOperator(cmdList):
+    #exit conditions
     if CurrentKey == '':
-        print('error: set a current log first')
+        print('error: set a current log first: set <name of loaded log>')
         return
     log = LogObj[CurrentKey]
     if not log:
-        print('error: key didn\'t seem to work')
+        print('fatal error in: def branchOperator')
+        return
+    if len(cmdList) < 2:
+        print('error: expected: <command> <regex string>')
+    #calculate number of queries
+    numCmds = int(len(cmdList) / 2)
+    #parsing starts here
     for i in range(numCmds):
-        nextCmd = cmd[i * 2: i * 2 + 2]
-        first = nextCmd[0]
-        second = nextCmd[1]
+        #pull two words i.e. <command> <regex string>
+        nextCmd = cmdList[i * 2: i * 2 + 2]
+        first,second = nextCmd
+        #check if regex string exists
         if second not in ReMap:
             print('error: regex string', second, 'not found in ReMap')
+            return
         regexString = ReMap[second] 
         if first == 'filter':
             log = filterLog(regexString, log)
@@ -142,24 +184,92 @@ def parseCommand(command):
             log = distinct(regexString, log)
         elif first == 'distinctr':
             log = distinct(regexString, log, reverseResults=True)
-   #print results
     printResult(log)
     printCount(log)
 
+#modify this for testing local logs
+def getLocalLog(cmdList):
+    if len(cmdList) != 3:
+        print('error: expected: loadlocal <fileName> <pick a name>')
+        return
+    try:
+        _,fileName,key = cmdList
+        global CurrentKey
+        if key in LogObj:
+            print('error: that name already exists')
+            return
+        LogObj[key] = []
+        #read the file
+        with open(fileName) as f:
+            for line in f: 
+                LogObj[key].append(line)
+        CurrentKey = key
+        printSys('loaded', fileName + ' as ' + key)
+        printSys('set', fileName + ' as ' + key)
+    except:
+        print('error: failed loading local file: ' + fileName)
+
+#pull remote log using SSH
+def getLog(cmdList):
+    #exit conditions
+    cmdError = 'error: expected: load <LogMap key> <HostMap key> <pick a name>'
+    if len(cmdList) != 4:
+        print(cmdError)
+        return
+    _,path,host,key = cmdList
+    if key in LogObj:
+        print('error: ' + key + ' already exists') 
+    #key error
+    if path not in LogMap or host not in HostMap:
+        errorP1 = 'error: LogMap key or HostMap key is invalid:'
+        errorP2 = cmdError
+        print(errorP1, errorP2)
+        return
+    #pull the file using SSH
+    global CurrentKey
+    cmd = HostMap[host]
+    cmd.append(LogMap[path])
+    out = subprocess.run(cmd, capture_output=True).stdout.decode().strip()
+    lines = out.split('\n')
+    LogObj[key] = lines    
+    CurrentKey = key
+    printSys('loaded', path + ' from ' + host + ' as ' + key) 
+    printSys('set', key + ' as current log')
+
+#grabs log using SSH or grabs a local log
+def branchLoad(cmdList):
+    if cmdList[0] == 'load':
+        getLog(cmdList)
+    else:
+        getLocalLog(cmdList)
+
+#parse user input into commands
+def parseCommand(command):
+    cmdList = command.split()
+    if len(cmdList) == 0:
+        return
+    first = cmdList[0]
+    #parsing starts here
+    if first in ['h', 'help']:
+        printHelp()
+    elif first == 'd':
+        printDashboard()
+    elif first in ['load', 'loadlocal']:
+        branchLoad(cmdList)
+    elif first in ['save', 'saveraw']:
+        branchSave(cmdList) 
+    elif first in ['filter', 'distinct']:
+        branchOperator(cmdList)
+    else:
+        print('command failed, type: h for help')
+
+#main
 def main():
-#    cmd = pullMap['ubuntu1']
-#    cmd.append(logMap['auth'])
-#    print(cmd)
-#    out = subprocess.run(cmd, capture_output=True).stdout.decode().strip()
-#    lines = out.split('\n')
-#    reStr = reMap['authAccept']
-#    result = []
-#    for line in lines:
-#        re.search(reStr, line) and result.append(line)
-#        
-#    printResult(result)
-    getLocalLog()
-    printDashboard()
-    parseCommand('')
-          
+    run = True
+    while run:
+        ui = input('>')
+        if ui in ['q', 'exit']:
+            break
+        parseCommand(ui)
+
 main()
