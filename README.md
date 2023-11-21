@@ -1,10 +1,11 @@
 # somaPyParserRemote
 
 ## Purpose and Goals
-1. Analyze the log files of remote linux machines in a convenient fashion.
+1. Analyze the log files of remote linux machines in a convenient fashion via a psuedo console.
 2. Lightweight: Data transfer happens via SSH, doesn't require any extra software.
 3. Flexible: Can handle non-normalized logs because it uses regex not column numbers.
 4. Customizable: Add hosts, log paths, and regex strings easily.
+5. Ease of Use: Can be configured via the Startup list to automatically pull multiple logs upon executing the script. Macros can be set via the MacroMap.
 
 ## Security Considerations
 This script uses the subprocess module to run bash commands. Anyone with write access could modify said commands for nefarious purposes. If the remote user has root privileges, users running this script will have root privileges on the remote machine.
@@ -30,27 +31,57 @@ ssh [name you picked]
 4. Celebrate!
 
 ## Running the parser
-
-Look at somaPyParserRemote.py to learn what to edit. When everything is in order, open a terminal and enter:
+As detailed via comments in somaPyParser.py, edit the HostMap, LogMap, and ReMap dictionaries as per your needs, then open a terminal and run the script using:
 ```bash
 python3 somaPyParserRemote.py
 ```
 
 ## Examples
 
-```bash
-#load a remote log into a variable
-#load <LogMap key> <HostMap key> <pick a name>
+## Load data
+Load a remote file:
+```
 load auth ubuntu1 ubu1
-
-#load a local log
-#loadlocal <fileName> <pick a name>
+```
+Load a local file:
+```
 load auth.log ubu2
+```
 
-#filter by accepted logins
-#filter <ReMap key>
+## Show the UI
+Check the Dashboard:
+```
+d
+```
+Check the help screen:
+```
+q
+```
+
+## Switch between logs
+```
+use ubu1
+```
+```
+use ubu2
+```
+
+## Dynamically entered Regex strings
+Save a temporary regex string (escape special characters)
+```
+save 127.0.0.1 myip
+```
+Save a temporary regex string (keep regex special characters)
+```
+saveraw [0-9]{10} numchunk
+```
+
+## Analysis
+Filter by accepted SSH logins:
+```
 filter accepted
-
-#filter by accepted than count distinct ips
-#filter accepted distinct ip
+```
+Filter by accepted, then count distinct ips
+```
+filter accepted distinct ip
 ```

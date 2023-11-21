@@ -4,17 +4,24 @@
 import subprocess
 import re
 
-#########################################################
-#                                                       #
-# Config Section                                        #
-#                                                       #
-# Brief Description of maps                             #
-#   1. HostMap: used to reference remote machines.      #
-#   2. LogMap:  used to reference logs within a remote  #
-#               machine.                                #
-#   3. ReMap:   used to pull 'fields' from log entries. #
-#                                                       #
-#########################################################
+##########################################################
+#                                                        #
+# Config Section                                         #
+#                                                        #
+# Brief Description of Variables                         #
+#   1. HostMap:  used to reference remote machines.      #
+#                                                        #
+#   2. LogMap:   used to reference logs within a remote  #
+#                machine.                                #
+#                                                        #
+#   3. ReMap:    used to pull 'fields' from log entries. #
+#                                                        #
+#   4. MacroMap: map strings to commands.                #
+#                                                        #
+#   3. Startup:  run commands as soon as you execute     #
+#                this script.                            #
+#                                                        #
+##########################################################
 
 #   HostMap
 #Edit this to add remote hosts. This script requires the configuration of your ~/.ssh/config file.
@@ -44,8 +51,23 @@ ReMap = {
     #invalid login attempt
     'invalid': 'Invalid',
     #ip address (ipv4)
-    'ip': '([0-9]{1,3}\.){3}[0-9]{1,3}'
+    'ip': '([0-9]{1,3}\.){3}[0-9]{1,3}',
 }
+
+#   MacroMap
+#Edit this to map a string to a command. After you input something and press enter, this script first checks if you entered a macro, if so, it grabs that macro and inputs it into the main parser.
+#A good use case for this feature would be to load local logs with paths that are annoying to type out.
+#Another good use would be to execute long, commonly used queries.
+MacroMap = {
+    #'loadubu1': 'loadlocal auth.log ubu1'
+}
+
+#   StartupCommands
+#Commands in this list will be run, in order, upon starting this script. If you always pull the same logs, loading them at startup might be a good idea.
+Startup = [
+    #'loadubu1',
+    #'d'
+] 
 
 #########################
 #                       #
@@ -59,6 +81,7 @@ CurrentKey = ''
 
 #print log contents
 def printResult(l):
+    print('-----results-----')
     for line in l:
         print(line)
 
@@ -85,6 +108,8 @@ def printHelp():
     print('quit:            q')
     print('load data:       load <LogMap key> <HostMap key> <pick a name>')
     print('load local data: loadlocal <fileName> <pick a name>')
+    print('switch logs:     use <log>')
+    print('print all:       all')
     print('filter:          filter <ReMap key>')
     print('distinct:        distinct <Remap key>')
     print('save to ReMap:   save|saveraw <regex string> <pick a name>')
@@ -159,7 +184,7 @@ def branchOperator(cmdList):
         first,second = nextCmd
         #check if regex string exists
         if second not in ReMap:
-            print('error: regex string', second, 'not found in ReMap')
+            print('error: key', second, 'not found in ReMap')
             return
         regexString = ReMap[second] 
         if first == 'filter':
@@ -186,7 +211,7 @@ def getLocalLog(cmdList):
         #read the file
         with open(fileName) as f:
             for line in f: 
-                LogObj[key].append(line)
+                LogObj[key].append(line.strip())
         CurrentKey = key
         printSys('loaded', fileName + ' as ' + key)
         printSys('set', fileName + ' as ' + key)
@@ -227,6 +252,28 @@ def branchLoad(cmdList):
     else:
         getLocalLog(cmdList)
 
+#switch current log
+def branchUse(cmdList):
+    global CurrentKey
+    if len(cmdList) != 2:
+        print('error: expected: use <log key>')
+        return
+    key = cmdList[1]
+    if key not in LogObj:
+        print('error: key not found, type d to view loaded logs')
+        return
+    CurrentKey = key
+    printSys('set', 'switching current log to: ' + key)
+
+#print the whole log
+def branchAll():
+    if CurrentKey not in LogObj:
+        print('error: no current log, type d to view dashboard')
+        return
+    log = LogObj[CurrentKey]
+    printResult(log)    
+    printCount(log)
+
 #parse user input into commands
 def parseCommand(command):
     cmdList = command.split()
@@ -240,6 +287,10 @@ def parseCommand(command):
         printDashboard()
     elif first in ['load', 'loadlocal']:
         branchLoad(cmdList)
+    elif first == 'use':
+        branchUse(cmdList)
+    elif first == 'all':
+        branchAll()
     elif first in ['save', 'saveraw']:
         branchSave(cmdList) 
     elif first in ['filter', 'distinct']:
@@ -249,9 +300,16 @@ def parseCommand(command):
 
 #main
 def main():
-    run = True
-    while run:
+    #startup tasks 
+    #You can add/remove startup tasks by editing the Startup list in the config section
+    for i in Startup:
+        cmd = MacroMap[i] if i in MacroMap else i
+        parseCommand(cmd) 
+    while True:
         ui = input('>')
+        #check if macro
+        if ui in MacroMap:
+            ui = MacroMap[ui]
         if ui in ['q', 'exit']:
             break
         parseCommand(ui)
