@@ -4,36 +4,20 @@
 import subprocess
 import re
 
-##############################
-#                            #
-# Explanation and Config     #
-#                            #
-# Summary: uses SSH to pull  #
-# log data and store it into #
-# a list. Once stored, you   #
-# can filter and aggregate   #
-# the log.                   #
-#                            #
-# Examples can be found in   #
-# the README.                #
-#                            #
-# Brief Description of maps  #
-#   1. HostMap: used to      #
-#      reference remote      #
-#      machines.             #
-#                            #
-#   2. LogMap: used to       #
-#      reference logs within #
-#      a remote machine.     #
-#                            #
-#   3. ReMap: used to pull   #
-#      'fields' from log     #
-#      entries.              #
-#                            #
-##############################
+#########################################################
+#                                                       #
+# Config Section                                        #
+#                                                       #
+# Brief Description of maps                             #
+#   1. HostMap: used to reference remote machines.      #
+#   2. LogMap:  used to reference logs within a remote  #
+#               machine.                                #
+#   3. ReMap:   used to pull 'fields' from log entries. #
+#                                                       #
+#########################################################
 
 #   HostMap
-#Each entry in this dictionary represents a remote machine. This script requires the configuration of your ~/.ssh/config file.
+#Edit this to add remote hosts. This script requires the configuration of your ~/.ssh/config file.
 #key: how this script references the dictionary entry.
 #value: an array consisting of: 
 #   1. the command used to ssh (ssh).
@@ -44,13 +28,13 @@ HostMap = {
 }
 
 #   LogMap
-#Each entry represents the path of a log on a remote machine, e.g. /var/log/auth.log. This path will be automatically appended to the command: e.g. 'ssh ubuntu1 "cat /etc/var/auth.log"'.
+#Edit this to add log references. Each entry represents the path of a log on a remote machine, e.g. /var/log/auth.log. This path will be automatically appended to the command: e.g. 'ssh ubuntu1 "cat /etc/var/auth.log"'.
 LogMap = {
     'auth': '/var/log/auth.log'
 }
 
 #   ReMap
-#Each entry represents a regular expression string.
+#Edit this to add regex strings which can be used to filter logs, and pull specific fields from logs. Each entry represents a regular expression string.
 #You can create dynamic (temporary) entries using the command: save <key name> <regex string>
 #The above command will, for convenience, escape special regex characters.
 #If you don't want special characters escaped, use the command: saveraw <key name> <regex string>
